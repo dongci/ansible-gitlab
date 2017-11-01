@@ -23,12 +23,12 @@ git_user_email=xxx@163.com
 
 Example Playbook
 ----------------
----
+```
 - hosts: gitlab
   remote_user: root
   roles:
     - { role: gitlab, tags: [ 'gitlab' ] } 
-
+```
 
 Install gitlab
 --------------
