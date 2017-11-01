@@ -1,0 +1,174 @@
+---
+# tasks file for github
+
+#- name: Add /etc/hosts
+#  copy: src=hosts dest=/etc/hosts owner=root group=root mode=0644
+#  when: inventory_hostname in groups['gitlab'] 
+#    and ansible_os_family == "RedHat"  
+#  tags: gitlab
+
+- name: Install ack tools
+  get_url: url=http://beyondgrep.com/ack-2.14-single-file dest=/bin/ack 
+    mode=0755
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
+- name: Temporary disable selinux, if selinux is running
+  command: getenforce 0
+  changed_when: false
+  tags: gitlab
+
+- name: Stop firewalld.service
+  service: name=firewalld.service state=stopped enabled=no
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
+- name: Edite /etc/selinux/conf
+  copy: src=selinux dest=/etc/selinux/conf owner=root group=root mode=0644
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
+- name: Add gitlab-ce.repo
+  copy: src=gitlab-ce.repo dest=/etc/yum.repos.d/gitlab-ce.repo 
+    owner=root group=root mode=0644
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
+#- name: yum update
+#  command: yum update && yum makecache
+#  when: inventory_hostname in groups['gitlab'] 
+#    and ansible_os_family == "RedHat"  
+#  tags: gitlab
+
+- name: Install the dependency package for gitlab-ce
+  yum: name={{ item }} state=installed update_cache=yes
+  with_items:
+    - curl
+    - openssh-server
+    - openssh-clients
+    - postfix
+    - cronie
+    - iptables-services
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
+- name: Install gitlab-ce-8.8.0
+  yum: name=gitlab-ce-8.8.0 state=installed enablerepo=gitlab-ce
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
+- name: Open ports http 80
+  iptables: action=insert chain=INPUT protocol=tcp  
+    destination_port={{ item }} jump=ACCEPT
+  with_items:
+    - 80
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
+- name: Save iptables rule
+  shell: iptables-save >/etc/sysconfig/iptables
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
+- name: Start postfix.service and iptables.service
+  service: name={{ item }} state=restarted enabled=yes
+  with_items:
+    - postfix.service
+    - iptables.service
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
+- name: register gitlabrbbak
+  shell: test -f /etc/gitlab/gitlab.rb.bak
+  register: gitlabrbbak
+  ignore_errors: True
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
+- name: Backup /etc/gitlab/gitlab.rb
+  copy: src=/etc/gitlab/gitlab.rb dest=/etc/gitlab/gitlab.rb.bak 
+    remote_src=yes
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  and gitlabrbbak|failed
+  tags: gitlab
+
+- name: Configure /etc/gitlab/gitlab.rb
+  template: src=gitlab.rb.j2 dest=/etc/gitlab/gitlab.rb 
+    owner=root group=root mode=0600
+  notify:
+    - reconfigure
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
+#- name: Initial data and start gitlab service
+#  script: reconfigure.sh 
+##  ignore_errors: True
+#  when: inventory_hostname in groups['gitlab'] 
+#    and ansible_os_family == "RedHat"  
+#  tags: gitlab
+
+#- name: register gitlabLzh
+#  shell: test -d /tmp/gitlab-L-zh
+#  register: gitlabLzh
+#  ignore_errors: True
+#  when: inventory_hostname in groups['gitlab'] 
+#    and ansible_os_family == "RedHat"  
+#  tags: gitlab
+
+- name: git Clone gitlab-L-zh
+  git: repo='https://gitee.com/qiai365/gitlab-L-zh.git' dest=/tmp
+    clone=no update=no
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat" 
+  tags: gitlab
+
+- name: git checkout v8.8.0.zh1
+  shell: cd /tmp/gitlab-L-zh && git checkout v8.8.0.zh1
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
+- name: Stop gitlab service
+  shell: gitlab-ctl stop
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
+- name: register gitlabrailsori
+  shell: test -d /opt/gitlab/embedded/service/gitlab-rails.ori
+  register: gitlabrailsori
+  ignore_errors: True
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+  
+- name: Backup gitlab-rails dir
+  shell: cp -r /opt/gitlab/embedded/service/gitlab-rails{,.ori}
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat" and gitlabrailsori|failed
+  tags: gitlab
+
+- name: Finished gitlab and restart gitlab service
+  script: ./script/gitlab-L-zh.sh 
+#  ignore_errors: True
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
+- name: Please login {{ external_url }} first time to modify the administrator root password, very important.
+  shell: gitlab-ctl start
+  when: inventory_hostname in groups['gitlab'] 
+    and ansible_os_family == "RedHat"  
+  tags: gitlab
+
