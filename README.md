@@ -32,10 +32,10 @@ Example Playbook
 
 Install gitlab
 --------------
-ansible-playbook site.yml --tags gitlab
+`ansible-playbook site.yml --tags gitlab`
 
 
 Update root password
 ---------------------
-Open url {{ external_url }} , Update root password.
+`Open url {{ external_url }} , Update root password.`
 
