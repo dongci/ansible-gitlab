@@ -35,6 +35,12 @@
   when: inventory_hostname in groups['gitlab'] 
   tags: gitlab
 
+#- name: yum update
+#  command: yum update && yum makecache
+#  when: inventory_hostname in groups['gitlab'] 
+#    and ansible_os_family == "RedHat"  
+#  tags: gitlab
+
 - name: Install the dependency package for gitlab-ce
   yum: name={{ item }} state=installed update_cache=yes
   with_items:
@@ -80,8 +86,8 @@
 
 - name: register gitlabrbbak
   shell: test -f /etc/gitlab/gitlab.rb.bak
-  ignore_errors: True
   register: gitlabrbbak
+  ignore_errors: True
   when: inventory_hostname in groups['gitlab'] 
   tags: gitlab
 
@@ -89,7 +95,7 @@
   copy: src=/etc/gitlab/gitlab.rb dest=/etc/gitlab/gitlab.rb.bak 
     remote_src=yes
   when: inventory_hostname in groups['gitlab'] 
-    and ansible_os_family == "RedHat" and gitlabrbbak|failed
+    and ansible_os_family == "RedHat"  and gitlabrbbak|failed
   tags: gitlab
 
 - name: Configure /etc/gitlab/gitlab.rb
@@ -109,13 +115,14 @@
   tags: gitlab
 
 - name: createdir /tmp/gitlab-L-zh
-  file: path=/tmp/gitlab-L-zh state=directory mode=0755
+  file: path=/tmp/gitlab-tmp state=directory mode=0755
   when: inventory_hostname in groups['gitlab'] 
     and ansible_os_family == "RedHat" 
   tags: gitlab
 
 - name: git Clone gitlab-L-zh
   git: repo='https://gitee.com/qiai365/gitlab-L-zh.git' dest=/tmp/gitlab-L-zh
+#    clone=yes update=no 
   when: inventory_hostname in groups['gitlab'] 
     and ansible_os_family == "RedHat" 
   tags: gitlab
@@ -161,8 +168,8 @@
     and ansible_os_family == "RedHat"  
   tags: gitlab
 
-- name: gitlab-ctl reconfigure again
-  command: gitlab-ctl start ; gitlab-ctl reconfigure
+- name: gitlab-ctl reconfigure
+  command: gitlab-ctl reconfigure
   ignore_errors: True
   when: inventory_hostname in groups['gitlab'] 
     and ansible_os_family == "RedHat" and gitlabcp|failed
@@ -175,7 +182,7 @@
   tags: gitlab
 
 - name: Please login {{ external_url }} first time to modify the administrator root password, very important.
-  shell: gitlab-stop ; gitlab-ctl start 
+  shell: gitlab-stop ; gitlab-ctl start
   when: inventory_hostname in groups['gitlab'] 
     and ansible_os_family == "RedHat"  
   tags: gitlab

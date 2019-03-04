@@ -1,5 +1,4 @@
 ---
 # handlers file for github
 - name: reconfigure
-  script: ./script/reconfigure.sh
-  ignore_errors: True
+  command: gitlab-ctl reconfigure 
